@@ -1,0 +1,72 @@
+{
+	"version": 5,
+	"cmakeMinimumRequired": {
+		"major": 4,
+		"minor": 4,
+		"patch": 2
+	},
+	"configurePresets": [
+		{
+			"name": "default",
+			"displayName": "Default Config",
+			"generator": "Ninja Multi-Config",
+			"binaryDir": "${sourceDir}/out/default",
+			"cacheVariables": {
+				"CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+			}
+		},
+		{
+			"name": "base-clang",
+			"hidden": true,
+			"inherits": "default",
+			"cacheVariables": {
+				"CMAKE_C_COMPILER": "clang",
+				"CMAKE_CXX_COMPILER": "clang++"
+			}
+		},
+		{
+			"name": "ninja-clang",
+			"displayName": "Ninja Clang",
+			"description": "Build configuration using Ninja Multi-Config / Clang",
+			"inherits": "base-clang",
+			"binaryDir": "${sourceDir}/out/clang",
+			"cacheVariables": {
+				"CMAKE_CXX_FLAGS_INIT": "-Wall -Wextra -Wpedantic -Wconversion -Werror=return-type",
+				"CMAKE_CXX_FLAGS_RELWITHDEBINFO_INIT": "-Werror",
+				"CMAKE_CXX_FLAGS_RELEASE_INIT": "-Werror"
+			}
+		}
+	],
+	"buildPresets": [
+		{
+			"name": "Debug",
+			"configurePreset": "default",
+			"configuration": "Debug"
+		},
+		{
+			"name": "Release",
+			"configurePreset": "default",
+			"configuration": "Release"
+		},
+		{
+			"name": "RelWithDebInfo",
+			"configurePreset": "default",
+			"configuration": "RelWithDebInfo"
+		},
+		{
+			"name": "Clang Debug",
+			"configurePreset": "ninja-clang",
+			"configuration": "Debug"
+		},
+		{
+			"name": "Clang RelWithDebInfo",
+			"configurePreset": "ninja-clang",
+			"configuration": "RelWithDebInfo"
+		},
+		{
+			"name": "Clang Release",
+			"configurePreset": "ninja-clang",
+			"configuration": "Release"
+		}
+	]
+}
