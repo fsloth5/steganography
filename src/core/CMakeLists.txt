@@ -8,7 +8,8 @@ FetchContent_MakeAvailable(libspng)
 
 set(LIB_NAME "${PROJECT_NAME}_lib")
 
-add_library(${LIB_NAME} STATIC "include/core/megan.hpp" "src/megan.cpp")
+add_library(${LIB_NAME} STATIC "src/megan.cpp" "include/core/megan.hpp"
+                               "include/core/utils.hpp")
 add_library(megan::core ALIAS ${LIB_NAME})
 
 configure_file("include/core/platform.hpp.in"
