@@ -1,0 +1,7 @@
+#pragma once
+#include <string_view>
+
+namespace megan {
+constexpr auto build_version_v = std::string_view{"@PROJECT_VERSION@"};
+constexpr auto platform_name_v = std::string_view{"@CMAKE_SYSTEM_NAME@"};
+} // namespace megan
