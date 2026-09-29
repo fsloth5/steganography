@@ -1,5 +1,7 @@
+#include <bit>
 #include <charconv>
 #include <string>
+#include <utility>
 
 #include <core/scanner.hpp>
 #include <core/utils.hpp>
@@ -77,13 +79,18 @@ namespace megan::scanner {
 
 std::optional<scanner::ppm_file_header_t>
 parse_ppm_file_header(std::ifstream &source, scanner::scanner_t &scanner) {
-  auto const on_magic_number_parsed =
-      [](ppm_file_header_t &header, ppm_phase_t &ppm_phase,
-         const std::string &line, scanner::scanner_t &scanner) {
-        header.magic_number = {line[0], static_cast<utils::u8>(line[1])};
-        ppm_phase = ppm_phase_t::WIDTH;
-        scanner.current += 2;
-      };
+  auto const found_magic_number = [](const std::string &line) {
+    auto version = line[1];
+    return std::isalpha(line[0]) && (version == '3' || version == '6');
+  };
+
+  auto const magic_number = [](ppm_file_header_t &header,
+                               ppm_phase_t &ppm_phase, const std::string &line,
+                               scanner::scanner_t &scanner) {
+    header.magic_number = {line[0], static_cast<utils::u8>(line[1])};
+    ppm_phase = ppm_phase_t::WIDTH;
+    scanner.current += 2;
+  };
 
   std::string line{};
 
@@ -96,15 +103,10 @@ parse_ppm_file_header(std::ifstream &source, scanner::scanner_t &scanner) {
 
   while (true) {
     if (ppm_phase == ppm_phase_t::END_OF_HEADER) {
-      if (is_whitespace_char(scanner.peek())) {
-        ppm_phase = ppm_phase_t::PIXELS;
-      } else {
-        scanner.err_message = "End of header cannot be determined";
-      }
       break;
     }
 
-    if (scanner.is_at_end()) {
+    if (scanner.is_at_line_end()) {
       std::getline(source, line);
 
       scanner.set_source_line(line);
@@ -119,9 +121,8 @@ parse_ppm_file_header(std::ifstream &source, scanner::scanner_t &scanner) {
     scanner.start = scanner.current;
 
     if (ppm_phase == ppm_phase_t::MAGIC_NUMBER) {
-      if (auto version = line[1];
-          std::isalpha(line[0]) && (version == '3' || version == '6')) {
-        on_magic_number_parsed(header, ppm_phase, line, scanner);
+      if (found_magic_number(line)) {
+        magic_number(header, ppm_phase, line, scanner);
         continue;
       }
 
@@ -147,6 +148,12 @@ parse_ppm_file_header(std::ifstream &source, scanner::scanner_t &scanner) {
     }
   }
 
+  if (is_whitespace_char(scanner.peek())) {
+    ppm_phase = ppm_phase_t::PIXELS;
+  } else {
+    scanner.err_message = "End of header cannot be determined";
+  }
+
   return scanner.err_message.empty() && ppm_phase == ppm_phase_t::PIXELS
              ? std::optional{header}
              : std::optional<scanner::ppm_file_header_t>{};
@@ -162,43 +169,86 @@ std::optional<ppm_file_t> parse_ppm_file(std::ifstream &source,
 
   auto header = *parsed_header;
 
-  auto pixels = std::vector<utils::u16>{};
+  const auto n =
+      static_cast<utils::usize>(3 * header.image_width * header.image_height);
 
-  pixels.reserve(3 * header.image_width * header.image_height);
+  auto pixels = std::vector<utils::u16>{};
+  pixels.reserve(sizeof(utils::u16) * n);
 
   std::string line{};
 
-  auto on_p3_format = [](scanner::scanner_t &scanner, std::ifstream &source,
-                         std::string &line, std::vector<utils::u16> pixels) {
+  const bool uses_big_endian{header.max_color_val >= 256 &&
+                             std::endian::native == std::endian::little};
+
+  auto on_p3_format = [](scanner_t &scanner, std::ifstream &source,
+                         std::string &line,
+                         std::vector<utils::u16> &pixels) -> void {
     while (std::getline(source, line)) {
       scanner.set_source_line(line);
 
-      while (!scanner.is_at_end()) {
-        scanner.start = scanner.current;
-
+      while (!scanner.is_at_line_end()) {
         skip_whitespace(scanner);
 
-        auto value = number(scanner);
+        scanner.start = scanner.current;
 
-        if (!value) {
+        auto parsed = number(scanner);
+
+        if (!parsed) {
           break;
         }
 
-        pixels.push_back(static_cast<utils::u16>(*value));
+        auto value = static_cast<utils::u16>(*parsed);
+
+        pixels.push_back(value);
       }
 
       scanner.advance_line();
     }
   };
 
-  auto const on_p6_format = [](scanner::scanner_t &scanner,
-                               std::ifstream &source, std::string &line,
-                               std::vector<utils::u16> pixels) {};
+  auto const on_p6_format =
+      [n, uses_big_endian](std::istream &source,
+                           std::vector<utils::u16> &pixels) -> void {
+    auto const on_p6_parse =
+        [n](auto data, std::istream &source, std::vector<utils::u16> &pixels)
+      requires(std::is_same_v<decltype(data), utils::u8> ||
+               std::is_same_v<decltype(data), utils::u16>)
+    {
+      using data_t = decltype(data);
+      std::vector<data_t> buffer{};
+
+      buffer.reserve(sizeof(data_t) * n);
+
+      auto ssize = static_cast<std::streamsize>(n);
+
+      source.read(reinterpret_cast<char *>(buffer.data()), ssize);
+
+      if (source.gcount() != ssize) {
+        throw std::runtime_error("short read");
+      }
+
+      for (utils::usize i{}, len = n; i < len; ++i) {
+        if constexpr (std::is_same_v<data_t, utils::u16>) {
+          pixels[i] = std::rotl(buffer[i], 8);
+        } else {
+          pixels[i] = buffer[i];
+        }
+      }
+    };
+
+    if (uses_big_endian) {
+      on_p6_parse(utils::u16{}, source, pixels);
+    } else {
+      on_p6_parse(utils::u8{}, source, pixels);
+    }
+  };
+
+  scanner.start = scanner.current = 0;
 
   if (header.magic_number.second == '3') {
     on_p3_format(scanner, source, line, pixels);
   } else {
-    on_p6_format(scanner, source, line, pixels);
+    on_p6_format(source, pixels);
   }
 
   return std::optional<ppm_file_t>{

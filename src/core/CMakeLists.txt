@@ -18,7 +18,9 @@ configure_file("include/core/platform.hpp.in"
                "${CMAKE_BINARY_DIR}/include/core/platform.hpp" @ONLY)
 
 target_compile_features(${LIB_NAME} PUBLIC cxx_std_20)
+
 target_include_directories(
   ${LIB_NAME} PUBLIC "${CMAKE_BINARY_DIR}/include"
                      "${CMAKE_CURRENT_SOURCE_DIR}/include")
+
 target_link_libraries(${LIB_NAME} PRIVATE spng_static)

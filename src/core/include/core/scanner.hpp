@@ -17,19 +17,21 @@ struct scanner_t final {
   std::string_view source_line{};
   std::string_view err_message{};
 
-  void advance() { ++current; }
+  void advance() noexcept { ++current; }
 
-  void advance_line() { last_line = current_line++; }
+  void advance_line() noexcept { last_line = current_line++; }
 
   [[nodiscard]] char peek() const { return source_line[current]; }
 
-  [[nodiscard]] bool is_at_end() const {
+  [[nodiscard]] bool is_at_line_end() const noexcept {
     return current == source_line.length();
   }
 
-  [[nodiscard]] bool skipped_line() const { return last_line != current_line; }
+  [[nodiscard]] bool skipped_line() const noexcept {
+    return last_line != current_line;
+  }
 
-  void set_source_line(std::string_view line) {
+  void set_source_line(std::string_view line) noexcept {
     source_line = line;
     current = 0;
   }
@@ -48,9 +50,10 @@ struct ppm_file_t final {
   std::vector<utils::u16> pixels{};
 };
 
-std::optional<scanner::ppm_file_header_t>
+[[nodiscard]] std::optional<scanner::ppm_file_header_t>
 parse_ppm_file_header(std::ifstream &source, scanner::scanner_t &scanner);
 
+[[nodiscard]]
 std::optional<ppm_file_t> parse_ppm_file(std::ifstream &source,
                                          scanner_t &scanner);
 
