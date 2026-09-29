@@ -161,6 +161,8 @@ parse_ppm_file_header(std::ifstream &source, scanner::scanner_t &scanner) {
 
 std::optional<ppm_file_t> parse_ppm_file(std::ifstream &source,
                                          scanner_t &scanner) {
+  using namespace utils;
+
   auto parsed_header = parse_ppm_file_header(source, scanner);
 
   if (!parsed_header) {
@@ -170,10 +172,10 @@ std::optional<ppm_file_t> parse_ppm_file(std::ifstream &source,
   auto header = *parsed_header;
 
   const auto n =
-      static_cast<utils::usize>(3 * header.image_width * header.image_height);
+      static_cast<usize>(3 * header.image_width * header.image_height);
 
-  auto pixels = std::vector<utils::u16>{};
-  pixels.reserve(sizeof(utils::u16) * n);
+  auto pixels = std::vector<u16>{};
+  pixels.reserve(sizeof(u16) * n);
 
   std::string line{};
 
@@ -181,8 +183,7 @@ std::optional<ppm_file_t> parse_ppm_file(std::ifstream &source,
                              std::endian::native == std::endian::little};
 
   auto on_p3_format = [](scanner_t &scanner, std::ifstream &source,
-                         std::string &line,
-                         std::vector<utils::u16> &pixels) -> void {
+                         std::string &line, std::vector<u16> &pixels) -> void {
     while (std::getline(source, line)) {
       scanner.set_source_line(line);
 
@@ -197,7 +198,7 @@ std::optional<ppm_file_t> parse_ppm_file(std::ifstream &source,
           break;
         }
 
-        auto value = static_cast<utils::u16>(*parsed);
+        auto value = static_cast<u16>(*parsed);
 
         pixels.push_back(value);
       }
@@ -208,13 +209,14 @@ std::optional<ppm_file_t> parse_ppm_file(std::ifstream &source,
 
   auto const on_p6_format =
       [n, uses_big_endian](std::istream &source,
-                           std::vector<utils::u16> &pixels) -> void {
+                           std::vector<u16> &pixels) -> void {
     auto const on_p6_parse =
-        [n](auto data, std::istream &source, std::vector<utils::u16> &pixels)
-      requires(std::is_same_v<decltype(data), utils::u8> ||
-               std::is_same_v<decltype(data), utils::u16>)
+        [n](auto data, std::istream &source, std::vector<u16> &pixels)
+      requires(std::is_same_v<decltype(data), u8> ||
+               std::is_same_v<decltype(data), u16>)
     {
       using data_t = decltype(data);
+
       std::vector<data_t> buffer{};
 
       buffer.reserve(sizeof(data_t) * n);
@@ -227,8 +229,8 @@ std::optional<ppm_file_t> parse_ppm_file(std::ifstream &source,
         throw std::runtime_error("short read");
       }
 
-      for (utils::usize i{}, len = n; i < len; ++i) {
-        if constexpr (std::is_same_v<data_t, utils::u16>) {
+      for (usize i{}, len = n; i < len; ++i) {
+        if constexpr (std::is_same_v<data_t, u16>) {
           pixels[i] = std::rotl(buffer[i], 8);
         } else {
           pixels[i] = buffer[i];
@@ -237,9 +239,9 @@ std::optional<ppm_file_t> parse_ppm_file(std::ifstream &source,
     };
 
     if (uses_big_endian) {
-      on_p6_parse(utils::u16{}, source, pixels);
+      on_p6_parse(u16{}, source, pixels);
     } else {
-      on_p6_parse(utils::u8{}, source, pixels);
+      on_p6_parse(u8{}, source, pixels);
     }
   };
 
