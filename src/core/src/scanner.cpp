@@ -175,7 +175,7 @@ std::optional<ppm_file_t> parse_ppm_file(std::ifstream &source,
       static_cast<usize>(3 * header.image_width * header.image_height);
 
   auto pixels = std::vector<u16>{};
-  pixels.reserve(sizeof(u16) * n);
+  pixels.reserve(n);
 
   std::string line{};
 
@@ -219,7 +219,7 @@ std::optional<ppm_file_t> parse_ppm_file(std::ifstream &source,
 
       std::vector<data_t> buffer{};
 
-      buffer.reserve(sizeof(data_t) * n);
+      buffer.reserve(n);
 
       auto ssize = static_cast<std::streamsize>(n);
 
