@@ -37,8 +37,14 @@ struct scanner_t final {
   }
 };
 
+enum class encrypt_status_t : utils::u8 {
+  OK,
+  IMAGE_TOO_SMALL,
+};
+
 struct ppm_file_header_t final {
   std::pair<char, utils::u8> magic_number{};
+  utils::u8 channel_count{};
   utils::u32 image_width{};
   utils::u32 image_height{};
   utils::u16 max_color_val{};
@@ -55,6 +61,9 @@ parse_ppm_file_header(std::ifstream &source, scanner::scanner_t &scanner);
 
 [[nodiscard]]
 std::optional<ppm_file_t> parse_ppm_file(std::ifstream &source,
-                                         scanner_t &scanner);
+                                         scanner_t &scanner,
+                                         utils::u8 image_channel_count = 3u);
+
+encrypt_status_t hide_in_ppm(std::string_view message, ppm_file_t &file);
 
 } // namespace megan::scanner
