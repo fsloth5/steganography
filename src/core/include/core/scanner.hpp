@@ -9,11 +9,6 @@
 
 namespace megan::scanner {
 
-enum class encryption_status_t : utils::u8 {
-  OK,
-  IMAGE_TOO_SMALL,
-};
-
 struct scanner_t final {
   utils::usize start{};
   utils::usize current{};
@@ -63,7 +58,5 @@ parse_ppm_file_header(std::ifstream &source, scanner::scanner_t &scanner);
 std::optional<ppm_file_t> parse_ppm_file(std::ifstream &source,
                                          scanner_t &scanner,
                                          utils::u8 image_channel_count = 3u);
-
-encryption_status_t hide_in_ppm(std::string_view message, ppm_file_t &file);
 
 } // namespace megan::scanner
