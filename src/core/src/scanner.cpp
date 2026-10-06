@@ -259,7 +259,7 @@ std::optional<ppm_file_t> parse_ppm_file(std::ifstream &source,
       ppm_file_t{.header = header, .pixels = std::move(pixels)}};
 }
 
-encrypt_status_t hide_in_ppm(std::string_view message, ppm_file_t &file) {
+encryption_status_t hide_in_ppm(std::string_view message, ppm_file_t &file) {
   using namespace utils;
 
   const auto channel_count = file.header.channel_count;
@@ -271,7 +271,7 @@ encrypt_status_t hide_in_ppm(std::string_view message, ppm_file_t &file) {
       static_cast<usize>(std::ceil(file.pixels.size() / channel_count));
 
   if (image_size < message_size) {
-    return encrypt_status_t::IMAGE_TOO_SMALL;
+    return encryption_status_t::IMAGE_TOO_SMALL;
   }
 
   auto &pixels = file.pixels;
@@ -289,6 +289,6 @@ encrypt_status_t hide_in_ppm(std::string_view message, ppm_file_t &file) {
     }
   }
 
-  return encrypt_status_t::OK;
+  return encryption_status_t::OK;
 }
 } // namespace megan::scanner
